@@ -20,6 +20,9 @@ import android.widget.MediaController;
 import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
 import android.widget.VideoView;
+import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
 
 public class SimpleVideoStream extends Activity implements
 	MediaPlayer.OnCompletionListener, MediaPlayer.OnPreparedListener,
@@ -32,6 +35,7 @@ public class SimpleVideoStream extends Activity implements
 	private String mVideoUrl;
 	private Boolean mShouldAutoClose = true;
 	private boolean mControls;
+	private Bundle mHeaders = null;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -40,6 +44,7 @@ public class SimpleVideoStream extends Activity implements
 		this.getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
 
 		Bundle b = getIntent().getExtras();
+		mHeaders = b.getBundle("headers");
 		mVideoUrl = b.getString("mediaUrl");
 		mShouldAutoClose = b.getBoolean("shouldAutoClose");
 		mShouldAutoClose = mShouldAutoClose == null ? true : mShouldAutoClose;
@@ -78,7 +83,22 @@ public class SimpleVideoStream extends Activity implements
 			mVideoView.setOnCompletionListener(this);
 			mVideoView.setOnPreparedListener(this);
 			mVideoView.setOnErrorListener(this);
-			mVideoView.setVideoURI(videoUri);
+
+			if (mHeaders == null || mHeaders.isEmpty()) {
+				mVideoView.setVideoURI(videoUri);
+			} else {
+				Map<String, String> headers = new HashMap<String, String>(mHeaders.size());
+				for (String headerKey : mHeaders.keySet()) {
+					final String headerValue = String.valueOf(mHeaders.get(headerKey));
+					headers.put(headerKey, headerValue);
+					Log.v(TAG, "Set HTTP Header: " + headerKey + " -> " + headerValue);
+				}
+
+				// Use reflection to invoke setVideoURI() because it is not accessible in earlier SDK versions.
+				Method setVideoURIMethod = mVideoView.getClass().getMethod("setVideoURI", Uri.class, Map.class);
+				setVideoURIMethod.invoke(mVideoView, videoUri, headers);
+			}
+
 			mMediaController = new MediaController(this);
 			mMediaController.setAnchorView(mVideoView);
 			mMediaController.setMediaPlayer(mVideoView);

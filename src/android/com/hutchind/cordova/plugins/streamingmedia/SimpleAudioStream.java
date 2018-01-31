@@ -16,6 +16,8 @@ import android.view.Window;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.MediaController;
+import java.util.HashMap;
+import java.util.Map;
 
 public class SimpleAudioStream extends Activity implements
 		MediaPlayer.OnCompletionListener, MediaPlayer.OnPreparedListener,
@@ -29,12 +31,14 @@ public class SimpleAudioStream extends Activity implements
 	private View mMediaControllerView;
 	private String mAudioUrl;
 	private Boolean mShouldAutoClose = true;
+	private Bundle mHeaders = null;
 
 	@Override
 	public void onCreate(Bundle icicle) {
 		super.onCreate(icicle);
 		this.requestWindowFeature(Window.FEATURE_NO_TITLE);
 		Bundle b = getIntent().getExtras();
+		mHeaders = b.getBundle("headers");
 		mAudioUrl = b.getString("mediaUrl");
 		String backgroundColor = b.getString("bgColor");
 		String backgroundImagePath = b.getString("bgImage");
@@ -91,7 +95,19 @@ public class SimpleAudioStream extends Activity implements
 					Log.e(TAG, e.toString());
 				}
 			}
-			mMediaPlayer.setDataSource(this, myUri); // Go to Initialized state
+
+			if (mHeaders == null || mHeaders.isEmpty()) {
+				mMediaPlayer.setDataSource(this, myUri); // Go to Initialized state
+			} else {
+				Map<String, String> headers = new HashMap<String, String>(mHeaders.size());
+				for (String headerKey : mHeaders.keySet()) {
+					final String headerValue = String.valueOf(mHeaders.get(headerKey));
+					headers.put(headerKey, headerValue);
+					Log.v(TAG, "Set HTTP Header: " + headerKey + " -> " + headerValue);
+				}
+				mMediaPlayer.setDataSource(this, myUri, headers); // Go to Initialized state
+			}
+
 			mMediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
 			mMediaPlayer.setOnPreparedListener(this);
 			mMediaPlayer.setOnCompletionListener(this);

@@ -7,6 +7,11 @@ import android.util.Log;
 import android.content.ContentResolver;
 import android.content.Intent;
 import android.os.Build;
+import android.webkit.URLUtil;
+
+import java.io.File;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Iterator;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -64,6 +69,32 @@ public class StreamingMedia extends CordovaPlugin {
 		}
 	}
 
+	private static Bundle jsonObjectToBundle(JSONObject options) {
+		Bundle bundle = new Bundle();
+
+		Iterator<String> optKeys = options.keys();
+		while (optKeys.hasNext()) {
+			try {
+				final String optKey = (String)optKeys.next();
+				if (options.get(optKey).getClass().equals(String.class)) {
+					bundle.putString(optKey, (String)options.get(optKey));
+					Log.v(TAG, "Added option: " + optKey + " -> " + String.valueOf(options.get(optKey)));
+				} else if (options.get(optKey).getClass().equals(Boolean.class)) {
+					bundle.putBoolean(optKey, (Boolean)options.get(optKey));
+					Log.v(TAG, "Added option: " + optKey + " -> " + String.valueOf(options.get(optKey)));
+				} else if (options.get(optKey).getClass().equals(JSONObject.class)) {
+					Bundle childBundle = jsonObjectToBundle((JSONObject)options.get(optKey));
+					bundle.putBundle(optKey, childBundle);
+					Log.v(TAG, "Added option: " + optKey + " -> " + String.valueOf(options.get(optKey)));
+				}
+
+			} catch (JSONException e) {
+				Log.e(TAG, "JSONException while trying to read options. Skipping option.");
+			}
+		}
+		return bundle;
+	}
+
 	private boolean playAudio(String url, JSONObject options) {
 		return play(SimpleAudioStream.class, url, options);
 	}
@@ -78,26 +109,11 @@ public class StreamingMedia extends CordovaPlugin {
 		cordova.getActivity().runOnUiThread(new Runnable() {
 			public void run() {
 				final Intent streamIntent = new Intent(cordovaObj.getActivity().getApplicationContext(), activityClass);
-				Bundle extras = new Bundle();
-				extras.putString("mediaUrl", url);
 
 				if (options != null) {
-					Iterator<String> optKeys = options.keys();
-					while (optKeys.hasNext()) {
-						try {
-							final String optKey = (String)optKeys.next();
-							if (options.get(optKey).getClass().equals(String.class)) {
-								extras.putString(optKey, (String)options.get(optKey));
-								Log.v(TAG, "Added option: " + optKey + " -> " + String.valueOf(options.get(optKey)));
-							} else if (options.get(optKey).getClass().equals(Boolean.class)) {
-								extras.putBoolean(optKey, (Boolean)options.get(optKey));
-								Log.v(TAG, "Added option: " + optKey + " -> " + String.valueOf(options.get(optKey)));
-							}
+					Bundle extras = jsonObjectToBundle(options);
+					extras.putString("mediaUrl", url);
 
-						} catch (JSONException e) {
-							Log.e(TAG, "JSONException while trying to read options. Skipping option.");
-						}
-					}
 					streamIntent.putExtras(extras);
 				}
 
