@@ -37,10 +37,27 @@ public class StreamingMedia extends CordovaPlugin {
 			// Developer provided no options. Leave options null.
 		}
 
+		String fileUrl = args.getString(0);
+
+		// Check if file exists on disk.
+		if (URLUtil.isFileUrl(fileUrl)) {
+			try {
+				URI fileUri = new URI(fileUrl);
+				File file = new File(fileUri);
+				if (!file.exists()) {
+					callbackContext.error("File not found: " + fileUrl);
+					return false;
+				}
+			} catch (URISyntaxException uriSyntaxException) {
+				callbackContext.error("Invalid Uri Syntax: " + fileUrl);
+				return false;
+			}
+		}
+
 		if (ACTION_PLAY_AUDIO.equals(action)) {
-			return playAudio(args.getString(0), options);
+			return playAudio(fileUrl, options);
 		} else if (ACTION_PLAY_VIDEO.equals(action)) {
-			return playVideo(args.getString(0), options);
+			return playVideo(fileUrl, options);
 		} else {
 			callbackContext.error("streamingMedia." + action + " is not a supported method.");
 			return false;
